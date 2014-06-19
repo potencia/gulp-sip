@@ -11,7 +11,7 @@
     "bugs" : {
         "url" : "https://github.com/potencia/gulp-sip/issues"
     },
-    "files" : ["README.md", "LICENSE", "index.js", "spec.js", "gulpfile.js", "jscs.json", "jshint.json"]
+    "files" : ["README.md", "LICENSE", "index.js", "spec.js", "gulpfile.js", "jscs.json", "jshint.json"],
     "main" : "index.js",
     "repository" : {
         "type" : "git",
