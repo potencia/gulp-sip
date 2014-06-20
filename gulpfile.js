@@ -6,14 +6,29 @@ mocha = require('gulp-mocha'),
 gutil = require('gulp-util'),
 sequence = require('run-sequence');
 
-gulp.task('lint.run', function () {
-    return gulp.src(['index.js', 'spec.js'])
-    .pipe(jshint('jshint.json'))
+var js = {
+    all : ['index.js', 'lib/gulp-sip.js', 'lib/task.js', 'lib/util.js', 'test/gulp-sip-spec.js', 'test/task-spec.js', 'test/util-spec.js'],
+    main : ['index.js', 'lib/gulp-sip.js', 'lib/task.js', 'lib/util.js'],
+    test : ['test/gulp-sip-spec.js', 'test/task-spec.js', 'test/util-spec.js']
+};
+
+gulp.task('lint.main', function () {
+    return gulp.src(js.main)
+    .pipe(jshint('build/jshint.main.json'))
     .pipe(jshint.reporter('jshint-stylish'));
 });
 
+gulp.task('lint.test', function () {
+    return gulp.src(js.test)
+    .pipe(jshint('build/jshint.test.json'))
+    .pipe(jshint.reporter('jshint-stylish'));
+});
+
+gulp.task('lint.run', ['lint.main', 'lint.test']);
+
 gulp.task('watch.lint', function () {
-    gulp.watch(['index.js', 'spec.js'], ['lint.run']);
+    gulp.watch(js.main, ['lint.main']);
+    gulp.watch(js.test, ['lint.test']);
 });
 
 gulp.task('lint', function (done) {
@@ -25,8 +40,8 @@ gulp.task('lint', function (done) {
 });
 
 gulp.task('style.run', function (done) {
-    gulp.src(['index.js', 'spec.js'])
-    .pipe(jscs('jscs.json'))
+    gulp.src(js.all)
+    .pipe(jscs('build/jscs.json'))
     .on('error', function (error) {
         gutil.log(gutil.linefeed + error.message);
     })
@@ -34,7 +49,7 @@ gulp.task('style.run', function (done) {
 });
 
 gulp.task('watch.style', function () {
-    gulp.watch(['index.js', 'spec.js'], ['style.run']);
+    gulp.watch(js.all, ['style.run']);
 });
 
 gulp.task('style', function (done) {
@@ -47,7 +62,7 @@ gulp.task('style', function (done) {
 
 gulp.task('test.run', function (done) {
     function runTests() {
-        gulp.src('spec.js')
+        gulp.src(js.test)
         .pipe(mocha({reporter : gutil.env.reporter || 'dot'}))
         .on('error', function (error) {
             gutil.log(gutil.colors.red(error.message));
@@ -56,7 +71,7 @@ gulp.task('test.run', function (done) {
         .on('finish', done);
     }
     if (gutil.env.coverage) {
-        gulp.src('index.js')
+        gulp.src(js.main)
         .pipe(istanbul())
         .on('finish', runTests);
     } else {
@@ -65,7 +80,7 @@ gulp.task('test.run', function (done) {
 });
 
 gulp.task('watch.test', function () {
-    gulp.watch(['index.js', 'spec.js'], ['test.run']);
+    gulp.watch(js.all, ['test.run']);
 });
 
 gulp.task('test', function (done) {

@@ -2,6 +2,7 @@
     "node" : true,
     "bitwise" : true,
     "eqeqeq" : true,
+    "expr" : true,
     "forin" : true,
     "freeze" : true,
     "latedef" : true,
