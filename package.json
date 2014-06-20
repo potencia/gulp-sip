@@ -24,10 +24,11 @@
         "node" : ">=0.6.0"
     },
     "dependencies" : {
-        "gulp" : "^3.6.2"
+        "minimist" : "^0.2.0"
     },
     "devDependencies" : {
         "chai" : "^1.9.1",
+        "gulp" : "^3.6.2",
         "gulp-istanbul" : "^0.2.0",
         "gulp-jscs" : "^0.5.0",
         "gulp-jshint" : "^1.6.1",

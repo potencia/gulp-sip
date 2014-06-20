@@ -402,11 +402,11 @@ describe('util', function () {
             expect(log).to.have.property('bc');
             expect(log).to.have.property('backWhite');
             expect(log).to.have.property('bw');
-            log();
+            log.done;
             console.log.reset();
 
             log.reset.backBlack
-            .partial.bold('bold')
+            .partial(' ').partial.bold('bold')
             .partial(' ').partial.italic('italic')
             .partial(' ').partial.under('under')
             .partial(' ').partial.inverse('inverse')
@@ -461,7 +461,7 @@ describe('util', function () {
             (' normal');
             expect(console.log.callCount).to.equal(1);
             expect(console.log.firstCall.args).to.deep.equal(['\u001b[0m[\u001b[1m\u001b[34msip\u001b[39m\u001b[22m] ' +
-            '\u001b[0m\u001b[40m' +              // .reset.backBlack
+            '\u001b[0m\u001b[40m ' +             // .reset.backBlack.partial(' ')
             '\u001b[1mbold\u001b[22m ' +         // .partial.bold('bold').partial(' ')
             '\u001b[3mitalic\u001b[23m ' +       // .partial.italic('italic').partial(' ')
             '\u001b[4munder\u001b[24m ' +        // .partial.under('under').partial(' ')

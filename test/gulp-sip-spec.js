@@ -13,20 +13,44 @@ describe('GulpSip', function () {
     });
 
     it('should have object property [ plugins ]', function () {
-        var descriptor = Object.getOwnPropertyDescriptor(sip, 'plugins');
-        expect(descriptor.enumerable).to.be.false;
-        expect(descriptor.configurable).to.be.false;
-        expect(descriptor.writable).to.be.false;
-        expect(descriptor.value).to.be.an('object');
+        expect(Object.getOwnPropertyDescriptor(sip, 'plugins')).to.deep.equal({
+            enumerable : false,
+            configurable : false,
+            writable : false,
+            value : {
+                gulp : {}
+            }
+        });
     });
 
     it('should have array property [ tasks ]', function () {
-        var descriptor = Object.getOwnPropertyDescriptor(sip, 'tasks');
-        expect(descriptor.enumerable).to.be.false;
-        expect(descriptor.configurable).to.be.false;
-        expect(descriptor.writable).to.be.false;
-        expect(descriptor.value).to.be.an('array');
-        expect(sip.tasks).to.have.length(0);
+        expect(Object.getOwnPropertyDescriptor(sip, 'tasks')).to.deep.equal({
+            enumerable : false,
+            configurable : false,
+            writable : false,
+            value : []
+        });
+    });
+
+    it('should have a property [ env ]', function () {
+        expect(Object.getOwnPropertyDescriptor(sip, 'env')).to.deep.equal({
+            enumerable : false,
+            configurable : false,
+            writable : false,
+            value : require('../lib/util').env
+        });
+    });
+
+    it('should have a property [ config ]', function () {
+        expect(Object.getOwnPropertyDescriptor(sip, 'config')).to.deep.equal({
+            enumerable : false,
+            configurable : false,
+            writable : false,
+            value : {
+                gulp : null,
+                verbose : false
+            }
+        });
     });
 
     describe('index', function () {
@@ -39,37 +63,67 @@ describe('GulpSip', function () {
         });
     });
 
-    describe('.gulp <getter>', function () {
-        it('should be a special property', function () {
-            var descriptor = Object.getOwnPropertyDescriptor(sip, 'gulp');
-            expect(descriptor.enumerable).to.be.false;
-            expect(descriptor.configurable).to.be.false;
-            expect(descriptor).to.not.have.property('writable');
-            expect(descriptor).to.not.have.property('value');
-            expect(descriptor).to.have.property('get');
-            expect(descriptor).to.not.have.property('set');
+    describe('.configure()', function () {
+        it('should use ducktyping to detect if arguments[0] is [ gulp ]', function () {
+            var fakeGulp1 = {
+                task : function () {},
+                src : function () {},
+                dest : function () {},
+                watch : function () {},
+                num : 1
+            }, fakeGulp2 = {
+                task : function () {},
+                src : function () {},
+                dest : function () {},
+                watch : function () {},
+                num : 2
+            };
+
+            expect(sip.config.gulp).to.be.null;
+            sip.configure(fakeGulp1);
+            expect(sip.config.gulp).to.deep.equal(fakeGulp1);
+            sip.configure({});
+            expect(sip.config.gulp).to.deep.equal(fakeGulp1);
+            sip.configure(null, fakeGulp2, null);
+            expect(sip.config.gulp).to.deep.equal(fakeGulp2);
+            sip.configure();
+            expect(sip.config.gulp).to.deep.equal(fakeGulp2);
         });
 
-        it('should return the value of [ .plugins.gulp ]', function () {
-            sip.plugins.gulp = '{{Test}}';
-            expect(sip.gulp).to.equal('{{Test}}');
-            sip.plugins.gulp = '{{Object}}';
-            expect(sip.gulp).to.equal('{{Object}}');
+        it('should assume non-gulp objects are configuration objects', function () {
+            sip.configure({
+                verboseEnv : ['verboseOptionShouldBeSet'],
+                notAConfigurationOption : false
+            });
+            expect(sip.config.verbose).to.be.false;
         });
 
-        it('should default to the gulp library', function () {
-            expect(sip.gulp).to.deep.equal(require('gulp'));
-        });
-    });
+        describe('verboseEnv', function () {
+            it('should ignore anything other than an array', function () {
+                sip.config.verbose = null;
+                sip.configure({
+                    verboseEnv : {key : true}
+                });
+                expect(sip.config.verbose).to.be.null;
+            });
 
-    describe('.setGulp()', function () {
-        it('should return [ this ]', function () {
-            expect(sip.setGulp('{Something}')).to.deep.equal(sip);
-        });
+            it('should set [ sip.config.verbose ] if none of the list are present on the command line', function () {
+                sip.config.verbose = null;
+                sip.configure({
+                    verboseEnv : [1, 2, 3, function () {}]
+                });
+                expect(sip.config.verbose).to.be.false;
+            });
 
-        it('should set the passed value to [ sip.plugins.gulp ]', function () {
-            sip.setGulp('{Something}');
-            expect(sip.plugins.gulp).to.equal('{Something}');
+            it('should set [ sip.config.verbose ] if any of the list are present on the command line', function () {
+                sip.config.verbose = null;
+                sip.env.verboseOptionShouldBeSet = true;
+                sip.configure({
+                    verboseEnv : [1, 2, 3, 'verboseOptionShouldBeSet']
+                });
+                delete sip.env.verboseOptionShouldBeSet;
+                expect(sip.config.verbose).to.be.true;
+            });
         });
     });
 
@@ -80,7 +134,7 @@ describe('GulpSip', function () {
 
         it('should set the passed plugin to the passed name on [ sip.plugins ]', function () {
             sip.plugin('test', '{Test}');
-            expect(sip.plugins.test).to.equal('{Test}');
+            expect(sip.plugins.test).to.deep.equal({value : '{Test}'});
         });
 
         it('should throw and Error when the name is [ done ]', function () {
@@ -136,7 +190,7 @@ describe('GulpSip', function () {
             it('should ignore duplicate plugin registrations', function () {
                 sip.plugin('test', '{Something}');
                 sip.plugin('test', '{Something Else}');
-                expect(sip.plugins.test).to.equal('{Something}');
+                expect(sip.plugins.test).to.deep.equal({value : '{Something}'});
             });
 
             it('should output a warning message when a plugin is name is reused', function () {
