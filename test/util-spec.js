@@ -16,7 +16,7 @@ describe('util', function () {
             expect(args).to.have.length(0);
         });
 
-        it('should handle on argument', function () {
+        it('should handle one argument', function () {
             args = extractFunctionArguments(function (gulp) { return gulp; });
             expect(args).to.be.an('array');
             expect(args).to.deep.equal(['gulp']);
@@ -76,12 +76,12 @@ describe('util', function () {
     describe('log', function () {
         beforeEach(function () {
             sinon.stub(console, 'log');
-            log.ctx.stack = [];
-            log.ctx.partialStack = [];
         });
 
         afterEach(function () {
             console.log.restore();
+            log.ctx.stack.length = 0;
+            log.ctx.subStack.length = 0;
         });
 
         it('should be a function', function () {
@@ -127,8 +127,8 @@ describe('util', function () {
                 expect(log.ctx.stack).to.have.length(0);
             });
 
-            it('should have a [ partialStack ] array property', function () {
-                expect(log.ctx).to.have.property('partialStack');
+            it('should have a [ subStack ] array property', function () {
+                expect(log.ctx).to.have.property('subStack');
                 expect(log.ctx.stack).to.be.an('array');
                 expect(log.ctx.stack).to.have.length(0);
             });
@@ -148,24 +148,182 @@ describe('util', function () {
                 expect(log.partial).to.deep.equal(log);
             });
 
-            it('should start a [ partial ] command on the stack', function () {
+            it('should start a [ partial ] command on the stack and add it to the substack', function () {
                 log.partial;
                 expect(log.ctx.stack).to.deep.equal([['partial', []]]);
-                expect(log.ctx.partialStack).to.deep.equal([['partial', []]]);
+                expect(log.ctx.subStack).to.deep.equal([['partial', []]]);
             });
 
             it('when executed, should only collapse back the latest [ partial ] command', function () {
                 log.partial('something');
                 expect(log.ctx.stack).to.deep.equal([['text', 'something']]);
-                expect(log.ctx.partialStack).to.have.length(0);
+                expect(log.ctx.subStack).to.have.length(0);
                 log.partial.partial;
-                expect(log.ctx.partialStack).to.deep.equal([['partial', [['partial', []]]], ['partial', []]]);
+                expect(log.ctx.subStack).to.deep.equal([['partial', [['partial', []]]], ['partial', []]]);
                 log(' else')(' entirely');
                 expect(log.ctx.stack).to.deep.equal([['text', 'something'], ['text', ' else entirely']]);
-                expect(log.ctx.partialStack).to.have.length(0);
+                expect(log.ctx.subStack).to.have.length(0);
                 log();
                 expect(console.log.callCount).to.equal(1);
                 expect(console.log.firstCall.args).to.deep.equal(['\u001b[0m[\u001b[1m\u001b[34msip\u001b[39m\u001b[22m] something else entirely']);
+            });
+        });
+
+        describe('done property', function () {
+            it('should be a special property', function () {
+                var descriptor = Object.getOwnPropertyDescriptor(log, 'partial');
+                expect(descriptor.enumerable).to.be.true;
+                expect(descriptor.configurable).to.be.false;
+                expect(descriptor.writable).to.be.undefined;
+                expect(descriptor.set).to.be.undefined;
+                expect(descriptor.get).to.be.a('function');
+            });
+
+            it('should return the [ log ] function', function () {
+                expect(log.done).to.deep.equal(log);
+            });
+
+            it('should truncate the substack and output the text', function () {
+                log.partial.bold.partial.red.partial('get me outa here!');
+                expect(log.ctx.subStack).to.deep.equal([
+                    ['partial', ['bold', ['partial', ['red', ['text', 'get me outa here!']]]]],
+                    ['partial', ['red', ['text', 'get me outa here!']]]
+                ]);
+                log.done;
+                expect(log.ctx.subStack).to.have.length(0);
+                expect(console.log.callCount).to.equal(1);
+                expect(console.log.firstCall.args).to.deep.equal(['\u001b[0m[\u001b[1m\u001b[34msip\u001b[39m\u001b[22m] ' +
+                '\u001b[1m\u001b[31mget me outa here!\u001b[39m\u001b[22m']);
+            });
+        });
+
+        describe('firstline property', function () {
+            var realFirstLine;
+
+            beforeEach(function () {
+                realFirstLine = log.ctx.firstLine;
+            });
+
+            afterEach(function () {
+                log.ctx.firstLine = realFirstLine;
+            });
+
+            it('should be a special property', function () {
+                var descriptor = Object.getOwnPropertyDescriptor(log, 'firstline');
+                expect(descriptor.enumerable).to.be.true;
+                expect(descriptor.configurable).to.be.false;
+                expect(descriptor.writable).to.be.undefined;
+                expect(descriptor.set).to.be.undefined;
+                expect(descriptor.get).to.be.a('function');
+            });
+
+            it('should return the [ log ] function', function () {
+                expect(log.firstline).to.deep.equal(log);
+            });
+
+            it('should start a [ firstline ] command on the stack and add it to the substack', function () {
+                log.firstline;
+                expect(log.ctx.stack).to.deep.equal([['firstline', []]]);
+                expect(log.ctx.subStack).to.deep.equal([['firstline', []]]);
+            });
+
+            it('when executed, should only collapse back the latest [ firstline ] command and save the result to [ log.ctx.firstLine ]', function () {
+                log.firstline.bold;
+                expect(log.ctx.subStack).to.deep.equal([['firstline', ['bold']]]);
+                log('logstart ');
+                expect(log.ctx.firstLine).to.equal('\u001b[1mlogstart \u001b[22m');
+                expect(log.ctx.stack).to.deep.equal([]);
+                expect(log.ctx.subStack).to.have.length(0);
+                log('First Line Change Test');
+                expect(console.log.callCount).to.equal(1);
+                expect(console.log.firstCall.args).to.deep.equal(['\u001b[0m\u001b[1mlogstart \u001b[22mFirst Line Change Test']);
+            });
+        });
+
+        describe('otherlines property', function () {
+            var realOtherLines;
+
+            beforeEach(function () {
+                realOtherLines = log.ctx.otherLines;
+            });
+
+            afterEach(function () {
+                log.ctx.otherLines = realOtherLines;
+            });
+
+            it('should be a special property', function () {
+                var descriptor = Object.getOwnPropertyDescriptor(log, 'otherlines');
+                expect(descriptor.enumerable).to.be.true;
+                expect(descriptor.configurable).to.be.false;
+                expect(descriptor.writable).to.be.undefined;
+                expect(descriptor.set).to.be.undefined;
+                expect(descriptor.get).to.be.a('function');
+            });
+
+            it('should return the [ log ] function', function () {
+                expect(log.otherlines).to.deep.equal(log);
+            });
+
+            it('should start a [ otherlines ] command on the stack and add it to the substack', function () {
+                log.otherlines;
+                expect(log.ctx.stack).to.deep.equal([['otherlines', []]]);
+                expect(log.ctx.subStack).to.deep.equal([['otherlines', []]]);
+            });
+
+            it('when executed, should only collapse back the latest [ otherlines ] command and save the result to [ log.ctx.otherLines ]', function () {
+                log.otherlines.red.partial.backCyan('-')('---- ');
+                expect(log.ctx.otherLines).to.equal('\u001b[31m\u001b[46m-\u001b[49m---- \u001b[39m');
+                expect(log.ctx.stack).to.deep.equal([]);
+                expect(log.ctx.subStack).to.have.length(0);
+                log.eol('Other Line Test');
+                expect(console.log.callCount).to.equal(1);
+                expect(console.log.firstCall.args).to.deep.equal(['\u001b[0m[\u001b[1m\u001b[34msip\u001b[39m\u001b[22m] ' +
+                eol + '\u001b[31m\u001b[46m-\u001b[49m---- \u001b[39mOther Line Test']);
+            });
+        });
+
+        describe('alllines property', function () {
+            var realFirstLine, realOtherLines;
+
+            beforeEach(function () {
+                realFirstLine = log.ctx.firstLine;
+                realOtherLines = log.ctx.otherLines;
+            });
+
+            afterEach(function () {
+                log.ctx.firstLine = realFirstLine;
+                log.ctx.otherLines = realOtherLines;
+            });
+
+            it('should be a special property', function () {
+                var descriptor = Object.getOwnPropertyDescriptor(log, 'alllines');
+                expect(descriptor.enumerable).to.be.true;
+                expect(descriptor.configurable).to.be.false;
+                expect(descriptor.writable).to.be.undefined;
+                expect(descriptor.set).to.be.undefined;
+                expect(descriptor.get).to.be.a('function');
+            });
+
+            it('should return the [ log ] function', function () {
+                expect(log.alllines).to.deep.equal(log);
+            });
+
+            it('should start a [ alllines ] command on the stack and add it to the substack', function () {
+                log.alllines;
+                expect(log.ctx.stack).to.deep.equal([['alllines', []]]);
+                expect(log.ctx.subStack).to.deep.equal([['alllines', []]]);
+            });
+
+            it(
+            'when executed, should only collapse back the latest [ alllines ] command and save the result to [ log.ctx.firstLine ] and [ log.ctx.otherLines ]',
+            function () {
+                log.alllines.magenta(':: ');
+                expect(log.ctx.otherLines).to.equal('\u001b[35m:: \u001b[39m');
+                expect(log.ctx.stack).to.deep.equal([]);
+                expect(log.ctx.subStack).to.have.length(0);
+                log.partial('All Lines 1').eol('All Lines 2');
+                expect(console.log.callCount).to.equal(1);
+                expect(console.log.firstCall.args).to.deep.equal(['\u001b[0m\u001b[35m:: \u001b[39mAll Lines 1' + eol + '\u001b[35m:: \u001b[39mAll Lines 2']);
             });
         });
 

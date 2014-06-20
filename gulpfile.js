@@ -65,7 +65,7 @@ gulp.task('test.run', function (done) {
         gulp.src(js.test)
         .pipe(mocha({reporter : gutil.env.reporter || 'dot'}))
         .on('error', function (error) {
-            gutil.log(gutil.colors.red(error.message));
+            gutil.log(gutil.colors.bold.red(error.message) + (gutil.env.stacktrace ? (gutil.linefeed + error.stack) : ''));
         })
         .pipe(gutil.env.coverage ? istanbul.writeReports('coverage') : gutil.noop())
         .on('finish', done);

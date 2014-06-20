@@ -62,29 +62,6 @@ describe('GulpSip', function () {
         });
     });
 
-    describe('.gutil <getter>', function () {
-        it('should be a special property', function () {
-            var descriptor = Object.getOwnPropertyDescriptor(sip, 'gutil');
-            expect(descriptor.enumerable).to.be.false;
-            expect(descriptor.configurable).to.be.false;
-            expect(descriptor).to.not.have.property('writable');
-            expect(descriptor).to.not.have.property('value');
-            expect(descriptor).to.have.property('get');
-            expect(descriptor).to.not.have.property('set');
-        });
-
-        it('should return the value of [ .plugins.gutil ]', function () {
-            sip.plugins.gutil = '{{Test}}';
-            expect(sip.gutil).to.equal('{{Test}}');
-            sip.plugins.gutil = '{{Object}}';
-            expect(sip.gutil).to.equal('{{Object}}');
-        });
-
-        it('should default to the gulp-util plugin', function () {
-            expect(sip.gutil).to.deep.equal(require('gulp-util'));
-        });
-    });
-
     describe('.setGulp()', function () {
         it('should return [ this ]', function () {
             expect(sip.setGulp('{Something}')).to.deep.equal(sip);
@@ -93,17 +70,6 @@ describe('GulpSip', function () {
         it('should set the passed value to [ sip.plugins.gulp ]', function () {
             sip.setGulp('{Something}');
             expect(sip.plugins.gulp).to.equal('{Something}');
-        });
-    });
-
-    describe('.setGulpUtil()', function () {
-        it('should return [ this ]', function () {
-            expect(sip.setGulpUtil('{Something}')).to.deep.equal(sip);
-        });
-
-        it('should set the passed value to [ sip.plugins.gutil ]', function () {
-            sip.setGulpUtil('{Something}');
-            expect(sip.plugins.gutil).to.equal('{Something}');
         });
     });
 
@@ -159,17 +125,12 @@ describe('GulpSip', function () {
         });
 
         describe('duplicate registration', function () {
-            var gutil;
             beforeEach(function () {
-                gutil = {
-                    log : function () {},
-                    colors : {
-                        bold : function (str) { return '<bold>' + str + '</bold>'; },
-                        yellow : function (str) { return '<yellow>' + str + '</yellow>'; }
-                    }
-                };
-                sinon.stub(gutil, 'log');
-                sip.setGulpUtil(gutil);
+                sinon.stub(console, 'log');
+            });
+
+            afterEach(function () {
+                console.log.restore();
             });
 
             it('should ignore duplicate plugin registrations', function () {
@@ -180,11 +141,11 @@ describe('GulpSip', function () {
 
             it('should output a warning message when a plugin is name is reused', function () {
                 sip.plugin('test', '{Something}');
-                expect(gutil.log.callCount).to.equal(0);
+                expect(console.log.callCount).to.equal(0);
                 sip.plugin('test', '{Something Else}');
-                expect(gutil.log.callCount).to.equal(1);
-                expect(gutil.log.firstCall.args[0]).to.equal('<yellow><bold>WARNING:</bold> A plugin named [ test ] has already been registered. ' +
-                                                             'Duplicate registrations are ignored.</yellow>');
+                expect(console.log.callCount).to.equal(1);
+                expect(console.log.firstCall.args[0]).to.equal('\u001b[0m[\u001b[1m\u001b[34msip\u001b[39m\u001b[22m] \u001b[33m\u001b[1mWARNING:\u001b[22m ' +
+                'A plugin named [ test ] has already been registered. Duplicate registrations are ignored.\u001b[39m');
             });
         });
     });
@@ -255,6 +216,17 @@ describe('GulpSip', function () {
             sip.task(null, 'name', null, undefined, null, function action () {}, undefined);
             expect(sip.tasks[0].name).to.equal('name');
             expect(sip.tasks[0].action).to.be.a('function');
+        });
+
+        it('should throw and Error when the name matches an already registered task', function () {
+            try {
+                sip.task('duplicate', function () {});
+                sip.task('duplicate', function () {});
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('The task [ duplicate ] has already been defined. Unique task names are required.');
+            }
         });
     });
 });

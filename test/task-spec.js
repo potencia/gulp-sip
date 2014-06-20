@@ -5,9 +5,11 @@ Task = require('../lib/task'),
 expect = require('chai').expect;
 
 describe('Task', function () {
-    var sip, task;
+    var sip, task, otherPlugin;
     beforeEach(function () {
         sip = new GulpSip();
+        otherPlugin = '{otherPlugin}';
+        sip.plugin('other', otherPlugin);
     });
 
     describe('<constructor>', function () {
@@ -243,40 +245,40 @@ describe('Task', function () {
         it('should set [ inject ] when provided with [ action ]', function () {
             task = new Task(sip, {
                 name : 'taskName',
-                inject : ['gulp', 'gutil'],
+                inject : ['gulp', 'other'],
                 action : function () {}
             });
             expect(Object.getOwnPropertyDescriptor(task, 'inject')).to.deep.equal({
                 enumerable : true,
                 configurable : false,
                 writable : false,
-                value : [sip.gulp, sip.gutil]
+                value : [sip.gulp, otherPlugin]
             });
         });
 
         it('should set [ inject ] based on the definition of [ action ] when only [ action ] is provided', function () {
             task = new Task(sip, {
                 name : 'taskName',
-                action : function (gulp, gutil) { return [gulp, gutil]; }
+                action : function (gulp, other) { return [gulp, other]; }
             });
             expect(Object.getOwnPropertyDescriptor(task, 'inject')).to.deep.equal({
                 enumerable : true,
                 configurable : false,
                 writable : false,
-                value : [sip.gulp, sip.gutil]
+                value : [sip.gulp, otherPlugin]
             });
         });
 
         it('should set put [ undefined ] in the position of the argument named [ done ]', function () {
             task = new Task(sip, {
                 name : 'taskName',
-                action : function (gulp, done, gutil) { return [gulp, done, gutil]; }
+                action : function (gulp, done, other) { return [gulp, done, other]; }
             });
             expect(Object.getOwnPropertyDescriptor(task, 'inject')).to.deep.equal({
                 enumerable : true,
                 configurable : false,
                 writable : false,
-                value : [sip.gulp, undefined, sip.gutil]
+                value : [sip.gulp, undefined, otherPlugin]
             });
         });
 
@@ -296,7 +298,7 @@ describe('Task', function () {
         it('should set [ injectDoneAt ] to [ -1 ] when [ done ] is not to be injected', function () {
             task = new Task(sip, {
                 name : 'taskName',
-                action : function (gulp, gutil) { return [gulp, gutil]; }
+                action : function (gulp, other) { return [gulp, other]; }
             });
             expect(Object.getOwnPropertyDescriptor(task, 'injectDoneAt')).to.deep.equal({
                 enumerable : true,
@@ -309,7 +311,7 @@ describe('Task', function () {
         it('should set [ injectDoneAt ] to the position of [ done ] it is to be injected', function () {
             task = new Task(sip, {
                 name : 'taskName',
-                action : function (gulp, done, gutil) { return [gulp, done, gutil]; }
+                action : function (gulp, done, other) { return [gulp, done, other]; }
             });
             expect(Object.getOwnPropertyDescriptor(task, 'injectDoneAt')).to.deep.equal({
                 enumerable : true,
