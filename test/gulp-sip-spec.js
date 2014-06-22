@@ -48,7 +48,9 @@ describe('GulpSip', function () {
             writable : false,
             value : {
                 gulp : null,
-                verbose : false
+                env : {
+                    verbose : ['v', 'verbose']
+                }
             }
         });
     });
@@ -64,65 +66,253 @@ describe('GulpSip', function () {
     });
 
     describe('.configure()', function () {
-        it('should use ducktyping to detect if arguments[0] is [ gulp ]', function () {
-            var fakeGulp1 = {
+        var fakeOption1, fakeOption2, gulpImpersonator, config;
+        beforeEach(function () {
+            fakeOption1 = sinon.stub();
+            fakeOption2 = sinon.stub();
+            sip.configure.configurations.fakeOption1 = fakeOption1;
+            sip.configure.configurations.fakeOption2 = fakeOption2;
+            gulpImpersonator = {
                 task : function () {},
                 src : function () {},
                 dest : function () {},
                 watch : function () {},
                 num : 1
-            }, fakeGulp2 = {
-                task : function () {},
-                src : function () {},
-                dest : function () {},
-                watch : function () {},
-                num : 2
             };
-
-            expect(sip.config.gulp).to.be.null;
-            sip.configure(fakeGulp1);
-            expect(sip.config.gulp).to.deep.equal(fakeGulp1);
-            sip.configure({});
-            expect(sip.config.gulp).to.deep.equal(fakeGulp1);
-            sip.configure(null, fakeGulp2, null);
-            expect(sip.config.gulp).to.deep.equal(fakeGulp2);
-            sip.configure();
-            expect(sip.config.gulp).to.deep.equal(fakeGulp2);
+            config = {env : {}};
         });
 
-        it('should assume non-gulp objects are configuration objects', function () {
-            sip.configure({
-                verboseEnv : ['verboseOptionShouldBeSet'],
-                notAConfigurationOption : false
-            });
-            expect(sip.config.verbose).to.be.false;
+        afterEach(function () {
+            delete sip.configure.configurations.fakeOption1;
+            delete sip.configure.configurations.fakeOption2;
         });
 
-        describe('verboseEnv', function () {
-            it('should ignore anything other than an array', function () {
-                sip.config.verbose = null;
-                sip.configure({
-                    verboseEnv : {key : true}
-                });
-                expect(sip.config.verbose).to.be.null;
+        it('should have an object property [ configurations ]', function () {
+            expect(sip.configure).to.have.property('configurations');
+            expect(sip.configure.configurations).to.be.an('object');
+        });
+
+        describe('return value', function () {
+            it('should be an array', function () {
+                expect(sip.configure()).to.be.an('array');
             });
 
-            it('should set [ sip.config.verbose ] if none of the list are present on the command line', function () {
-                sip.config.verbose = null;
-                sip.configure({
-                    verboseEnv : [1, 2, 3, function () {}]
-                });
-                expect(sip.config.verbose).to.be.false;
+            it('should have an element for each argument passed', function () {
+                expect(sip.configure(null)).to.have.length(1);
+                expect(sip.configure(null, {})).to.have.length(2);
             });
 
-            it('should set [ sip.config.verbose ] if any of the list are present on the command line', function () {
-                sip.config.verbose = null;
-                sip.env.verboseOptionShouldBeSet = true;
-                sip.configure({
-                    verboseEnv : [1, 2, 3, 'verboseOptionShouldBeSet']
+            it('should return false for arguments that are not objects', function () {
+                expect(sip.configure(1)).to.deep.equal([false]);
+                expect(sip.configure('')).to.deep.equal([false]);
+                expect(sip.configure(false)).to.deep.equal([false]);
+                expect(sip.configure(null)).to.deep.equal([false]);
+                expect(sip.configure(undefined)).to.deep.equal([false]);
+                expect(sip.configure([])).to.deep.equal([false]);
+            });
+
+            it('should return an object for arguments that are configuration objects', function () {
+                expect(sip.configure({})[0]).to.be.an('object');
+            });
+
+            describe('object return value', function () {
+                it('should have matching keys to the object passed in', function () {
+                    expect(Object.keys(sip.configure({
+                        something : true,
+                        other : false
+                    })[0])).to.have.members(['something', 'other']);
                 });
-                delete sip.env.verboseOptionShouldBeSet;
-                expect(sip.config.verbose).to.be.true;
+
+                it('should result in each [ return[key] ] being the return value of [ sip.configure.configuration[key]() ]', function () {
+                    fakeOption1.returns('1');
+                    fakeOption2.returns(true);
+                    expect(sip.configure({
+                        something : true,
+                        fakeOption1 : false,
+                        fakeOption2 : 256
+                    })).to.deep.equal([{
+                        something : undefined,
+                        fakeOption1 : '1',
+                        fakeOption2 : true
+                    }]);
+                });
+            });
+
+            describe('valid gulp object return value', function () {
+                it('should be [ true ]', function () {
+                    expect(sip.configure(gulpImpersonator)[0]).to.be.true;
+                });
+            });
+        });
+
+        describe('with configuration object', function () {
+            it('should call for each [ configuration[key] ] it should call the function [ sip.configure.configuration[key]() ]', function () {
+                sip.configure({
+                    fakeOption1 : true,
+                    fakeOption2 : true
+                }, {
+                    fakeOption1 : true
+                });
+                expect(fakeOption1.callCount).to.equal(2);
+                expect(fakeOption2.callCount).to.equal(1);
+            });
+
+            it('should pass the values [ configuration[key], sip.config, sip ] to [ sip.configure.configuration[key]() ]', function () {
+                sip.configure({
+                    fakeOption1 : true,
+                    fakeOption2 : false
+                }, {
+                    fakeOption1 : 1
+                });
+                expect(fakeOption1.firstCall.args).to.deep.equal([true, sip.config, sip]);
+                expect(fakeOption1.secondCall.args).to.deep.equal([1, sip.config, sip]);
+                expect(fakeOption2.firstCall.args).to.deep.equal([false, sip.config, sip]);
+            });
+
+            it('should ignore [ key ] values that have no corresponding [ sip.configure.configuration[key] ]', function () {
+                sip.configure({
+                    fakeOption3 : true,
+                    fakeOption2 : false
+                }, {
+                    fakeOption1 : 1
+                });
+                expect(fakeOption1.callCount).to.equal(1);
+                expect(fakeOption2.callCount).to.equal(1);
+            });
+        });
+
+        describe('with valid gulp object', function () {
+            it('should not treat the argument like a configuration object', function () {
+                gulpImpersonator.fakeOption1 = true;
+                sip.configure(gulpImpersonator);
+                expect(fakeOption1.callCount).to.equal(0);
+            });
+
+            it('should set [ sip.config ] with the valid gulp object', function () {
+                sip.configure(gulpImpersonator);
+                expect(sip.config.gulp).to.deep.equal(gulpImpersonator);
+            });
+        });
+
+        describe('configurations', function () {
+            describe('gulp', function () {
+                it('should return true when ducktyping determines that [ gulp ] is a valid gulp object', function () {
+                    expect(sip.configure.configurations.gulp(gulpImpersonator, config)).to.be.true;
+                });
+
+                it('should return false when ducktyping determines that [ gulp ] is not a valid gulp object', function () {
+                    expect(sip.configure.configurations.gulp({}, config)).to.be.false;
+                });
+
+                it('should set [ sip.config.gulp ] to [ gulp ] when ducktyping determines that [ gulp ] is a valid gulp object', function () {
+                    sip.configure.configurations.gulp(gulpImpersonator, config);
+                    expect(config.gulp).to.deep.equal(gulpImpersonator);
+                });
+
+                it('should not set [ sip.config.gulp ] to [ gulp ] when ducktyping determines that [ gulp ] is a not valid gulp object', function () {
+                    sip.configure.configurations.gulp({}, config);
+                    expect(config.gulp).to.be.undefined;
+                });
+            });
+
+            describe('env', function () {
+                var envFakeOption;
+                beforeEach(function () {
+                    envFakeOption = sinon.stub().returns('fakeReturn');
+                    sip.configure.configurations.envFakeOption = envFakeOption;
+                });
+
+                afterEach(function () {
+                    delete sip.configure.configurations.envFakeOption;
+                });
+
+                it('should call the envKey configuration for each key', function () {
+                    sip.configure({
+                        env : {
+                            fakeOption : true
+                        }
+                    });
+                    expect(envFakeOption.callCount).to.equal(1);
+                });
+
+                it('should return the results in an object', function () {
+                    expect(sip.configure({
+                        env : {
+                            fakeOption : true
+                        }
+                    })).to.deep.equal([{
+                        env : {
+                            fakeOption : 'fakeReturn'
+                        }
+                    }]);
+                });
+            });
+
+            describe('envVerbose', function () {
+                it('should ignore any value that is not an array of strings', function () {
+                    sip.configure.configurations.envVerbose(1, config);
+                    sip.configure.configurations.envVerbose([1, 3], config);
+                    sip.configure.configurations.envVerbose(['1', false], config);
+                    expect(config.env.verbose).to.be.undefined;
+                });
+
+                it('should set [ sip.config.env.verbose ] to the provided list', function () {
+                    sip.configure.configurations.envVerbose([], config);
+                    expect(config.env.verbose).to.be.deep.equal([]);
+                    sip.configure.configurations.envVerbose(['VERBOSE', 'VERB'], config);
+                    expect(config.env.verbose).to.be.deep.equal(['VERBOSE', 'VERB']);
+                });
+
+                it('should be called on [ sip.configure({env.verbose: ?}) ]', function () {
+                    sinon.spy(sip.configure.configurations, 'envVerbose');
+                    sip.configure({env : {verbose : []}});
+                    expect(sip.configure.configurations.envVerbose.callCount).to.equal(1);
+                    sip.configure.configurations.envVerbose.restore();
+                });
+            });
+        });
+    });
+
+    describe('.checkEnv()', function () {
+        var fakeEnvOption;
+        beforeEach(function () {
+            fakeEnvOption = sinon.stub();
+            sip.checkEnv.configurations.fakeEnvOption = fakeEnvOption;
+        });
+
+        afterEach(function () {
+            delete sip.checkEnv.configurations.fakeEnvOption;
+        });
+
+        it('should call sip.checkEnv.configurations[key] for each key in sip.config.env', function () {
+            sip.config.env.fakeEnvOption = true;
+            sip.checkEnv();
+            delete sip.config.env.fakeEnvOption;
+            expect(fakeEnvOption.callCount).to.equal(1);
+            expect(fakeEnvOption.firstCall.args).to.deep.equal([true, sip.env, sip.config]);
+        });
+
+        it('should ignore any key that does not have a corresponding function', function () {
+            sip.config.env.randomEnvOption = true;
+            sip.checkEnv();
+        });
+
+        describe('configurations', function () {
+            var config;
+            beforeEach(function () {
+                config = {};
+            });
+
+            describe('verbose', function () {
+                it('should set [ sip.config.verbose ] to true if any of the [ sip.config.env.verbose ] list are present in [ sip.env ]', function () {
+                    sip.checkEnv.configurations.verbose(['verbose', 'verboseOption', 'notQuiet'], {verboseOption : 'loud'}, config);
+                    expect(config.verbose).to.be.true;
+                });
+
+                it('should set [ sip.config.verbose ] to false if none of the [ sip.config.env.verbose ] list are present in [ sip.env ]', function () {
+                    sip.checkEnv.configurations.verbose(['verbose', 'verboseOption', 'notQuiet'], {shh : true}, config);
+                    expect(config.verbose).to.be.false;
+                });
             });
         });
     });
