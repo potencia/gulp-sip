@@ -33,6 +33,7 @@
         "gulp-jscs" : "^0.5.0",
         "gulp-jshint" : "^1.6.1",
         "gulp-mocha" : "^0.4.1",
+        "gulp-sip" : "",
         "gulp-util" : "^2.2.14",
         "jshint-stylish" : "^0.2.0",
         "run-sequence" : "^0.3.6",
