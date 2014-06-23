@@ -180,6 +180,14 @@ describe('Task', function () {
             }
         });
 
+        it('should set [ registered ] to false', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                action : function () {}
+            });
+            expect(task.registered).to.be.false;
+        });
+
         it('should set [ name ]', function () {
             task = new Task(sip, {
                 name : 'taskName',
@@ -410,6 +418,35 @@ describe('Task', function () {
             sip.config.gulp = gulp = {
                 task : sinon.stub()
             };
+        });
+
+        describe('when [ registered ] is false', function () {
+            beforeEach(function () {
+                task = new Task(sip, {
+                    name : 'some.async.task',
+                    action : function () {}
+                });
+                task.register(sip);
+            });
+
+            it('should set [ registered ] to true', function () {
+                expect(task.registered).to.be.true;
+            });
+        });
+
+        describe('when [ registered ] is true', function () {
+            beforeEach(function () {
+                task = new Task(sip, {
+                    name : 'some.async.task',
+                    action : function () {}
+                });
+                task.registered = true;
+                task.register(sip);
+            });
+
+            it('should not call [ sip.config.gulp.task ]', function () {
+                expect(sip.config.gulp.task.callCount).to.equal(0);
+            });
         });
 
         describe('when no action is set', function () {

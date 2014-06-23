@@ -6,7 +6,7 @@ expect = require('chai').expect,
 sinon = require('sinon');
 
 describe('GulpSip', function () {
-    var sip;
+    var sip, gulpImpersonator;
 
     beforeEach(function () {
         sip = new GulpSip();
@@ -66,7 +66,7 @@ describe('GulpSip', function () {
     });
 
     describe('.configure()', function () {
-        var fakeOption1, fakeOption2, gulpImpersonator, config;
+        var fakeOption1, fakeOption2, config;
         beforeEach(function () {
             fakeOption1 = sinon.stub();
             fakeOption2 = sinon.stub();
@@ -76,8 +76,7 @@ describe('GulpSip', function () {
                 task : function () {},
                 src : function () {},
                 dest : function () {},
-                watch : function () {},
-                num : 1
+                watch : function () {}
             };
             config = {env : {}};
         });
@@ -196,21 +195,31 @@ describe('GulpSip', function () {
 
         describe('configurations', function () {
             describe('gulp', function () {
+                var fakeSip;
+                beforeEach(function () {
+                    fakeSip = {plugins : {gulp : {}}};
+                });
+
                 it('should return true when ducktyping determines that [ gulp ] is a valid gulp object', function () {
-                    expect(sip.configure.configurations.gulp(gulpImpersonator, config)).to.be.true;
+                    expect(sip.configure.configurations.gulp(gulpImpersonator, config, fakeSip)).to.be.true;
                 });
 
                 it('should return false when ducktyping determines that [ gulp ] is not a valid gulp object', function () {
-                    expect(sip.configure.configurations.gulp({}, config)).to.be.false;
+                    expect(sip.configure.configurations.gulp({}, config, fakeSip)).to.be.false;
                 });
 
                 it('should set [ sip.config.gulp ] to [ gulp ] when ducktyping determines that [ gulp ] is a valid gulp object', function () {
-                    sip.configure.configurations.gulp(gulpImpersonator, config);
+                    sip.configure.configurations.gulp(gulpImpersonator, config, fakeSip);
                     expect(config.gulp).to.deep.equal(gulpImpersonator);
                 });
 
+                it('should set [ sip.plugins.gulp.value ] to [ gulp ] when ducktyping determines that [ gulp ] is a valid gulp object', function () {
+                    sip.configure.configurations.gulp(gulpImpersonator, config, fakeSip);
+                    expect(fakeSip.plugins.gulp.value).to.deep.equal(gulpImpersonator);
+                });
+
                 it('should not set [ sip.config.gulp ] to [ gulp ] when ducktyping determines that [ gulp ] is a not valid gulp object', function () {
-                    sip.configure.configurations.gulp({}, config);
+                    sip.configure.configurations.gulp({}, config, fakeSip);
                     expect(config.gulp).to.be.undefined;
                 });
             });
@@ -471,6 +480,88 @@ describe('GulpSip', function () {
                 expect(error.name, error).to.equal('GulpSipError');
                 expect(error.message).to.equal('The task [ duplicate ] has already been defined. Unique task names are required.');
             }
+        });
+    });
+
+    describe('.run()', function () {
+        beforeEach(function () {
+            gulpImpersonator = {
+                task : sinon.stub(),
+                src : function () {},
+                dest : function () {},
+                watch : function () {}
+            };
+        });
+
+        it('should throw an Error when gulp is not set', function () {
+            try {
+                sip.run();
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('GulpSip requires [ gulp ]. Either pass [ gulp ] to [ GulpSip.configure() ] ' +
+                'before calling [ GulpSip.run() ] or pass [ gulp ] to [ GulpSip.run() ].');
+            }
+        });
+
+        it('should not throw an Error when gulp is previously set', function () {
+            try {
+                sip.configure(gulpImpersonator);
+                sip.run();
+            } catch (error) {
+                expect(error).to.be.undefined;
+            }
+        });
+
+        it('should not throw an Error when gulp is passed', function () {
+            try {
+                sip.run(gulpImpersonator);
+            } catch (error) {
+                expect(error).to.be.undefined;
+            }
+        });
+
+        it('should pass all arguments to [ sip.configure ]', function () {
+            sinon.spy(sip, 'configure');
+            sip.run(1, 2, 3, 4, gulpImpersonator);
+            expect(sip.configure.callCount).to.equal(1);
+            expect(sip.configure.firstCall.args).to.deep.equal([1, 2, 3, 4, gulpImpersonator]);
+            sip.configure.restore();
+        });
+
+        it('should call [ sip.checkEnv ]', function () {
+            sinon.spy(sip, 'checkEnv');
+            sip.run(gulpImpersonator);
+            expect(sip.checkEnv.callCount).to.equal(1);
+            sip.checkEnv.restore();
+        });
+
+        it('should cause [ gulp.task ] to be called once for each Task created by [ sip.tasks ]', function () {
+            sip.task('first', function () {});
+            sip.task('second', function () {});
+            sip.task('third', function () {});
+            sip.run(gulpImpersonator);
+            expect(gulpImpersonator.task.callCount).equal(3);
+            expect(gulpImpersonator.task.getCall(0).args[0]).equal('first');
+            expect(gulpImpersonator.task.getCall(1).args[0]).equal('second');
+            expect(gulpImpersonator.task.getCall(2).args[0]).equal('third');
+        });
+
+        it('when run a second time should not cause [ gulp.task ] to be called an already registered tasks', function () {
+            sip.configure(gulpImpersonator);
+            sip.task('first', function () {});
+            sip.task('second', function () {});
+            sip.run();
+            expect(gulpImpersonator.task.callCount).equal(2);
+            expect(gulpImpersonator.task.getCall(0).args[0]).equal('first');
+            expect(gulpImpersonator.task.getCall(1).args[0]).equal('second');
+            gulpImpersonator.task.reset();
+            sip.task('third', function () {});
+            sip.task('fourth', function () {});
+            sip.run();
+            expect(gulpImpersonator.task.callCount).equal(2);
+            expect(gulpImpersonator.task.getCall(0).args[0]).equal('third');
+            expect(gulpImpersonator.task.getCall(1).args[0]).equal('fourth');
         });
     });
 });

@@ -1,37 +1,38 @@
-var gulp = require('gulp'),
-istanbul = require('gulp-istanbul'),
-jscs = require('gulp-jscs'),
-jshint = require('gulp-jshint'),
-mocha = require('gulp-mocha'),
-gutil = require('gulp-util'),
-sequence = require('run-sequence');
+var sip = require('gulp-sip');
 
-var js = {
+sip.plugin('js', {
     all : ['index.js', 'lib/gulp-sip.js', 'lib/task.js', 'lib/util.js', 'test/gulp-sip-spec.js', 'test/task-spec.js', 'test/util-spec.js'],
     main : ['index.js', 'lib/gulp-sip.js', 'lib/task.js', 'lib/util.js'],
     test : ['test/gulp-sip-spec.js', 'test/task-spec.js', 'test/util-spec.js']
-};
+});
 
-gulp.task('lint.main', function () {
+sip.plugin('gutil', require('gulp-util'));
+sip.plugin('jscs', require('gulp-jscs'));
+sip.plugin('jshint', require('gulp-jshint'));
+sip.plugin('istanbul', require('gulp-istanbul'));
+sip.plugin('mocha', require('gulp-mocha'));
+sip.plugin('sequence', require('run-sequence'));
+
+sip.task('lint.main', 'Check main JavaScript for potential problems', function (gulp, js, jshint) {
     return gulp.src(js.main)
     .pipe(jshint('build/jshint.main.json'))
     .pipe(jshint.reporter('jshint-stylish'));
 });
 
-gulp.task('lint.test', function () {
+sip.task('lint.test', 'Check test JavaScript for potential problems', function (gulp, js, jshint) {
     return gulp.src(js.test)
     .pipe(jshint('build/jshint.test.json'))
     .pipe(jshint.reporter('jshint-stylish'));
 });
 
-gulp.task('lint.run', ['lint.main', 'lint.test']);
+sip.task('lint.run', ['lint.main', 'lint.test']);
 
-gulp.task('watch.lint', function () {
+sip.task('watch.lint', 'Continually check all JavaScript for potential problems', function (gulp, js) {
     gulp.watch(js.main, ['lint.main']);
     gulp.watch(js.test, ['lint.test']);
 });
 
-gulp.task('lint', function (done) {
+sip.task('lint', 'Check all JavaScript for potential problems', function (gutil, sequence, done) {
     if (gutil.env.watch) {
         sequence('lint.run', 'watch.lint', done);
     } else {
@@ -39,7 +40,7 @@ gulp.task('lint', function (done) {
     }
 });
 
-gulp.task('style.run', function (done) {
+sip.task('style.run', function (gulp, js, jscs, done) {
     gulp.src(js.all)
     .pipe(jscs('build/jscs.json'))
     .on('error', function (error) {
@@ -48,11 +49,11 @@ gulp.task('style.run', function (done) {
     .on('finish', done);
 });
 
-gulp.task('watch.style', function () {
+sip.task('watch.style', 'Continually check the coding style of all JavaScript code', function (gulp, js) {
     gulp.watch(js.all, ['style.run']);
 });
 
-gulp.task('style', function (done) {
+sip.task('style', 'Check the coding style of all JavaScript code', function (gutil, sequence, done) {
     if (gutil.env.watch) {
         sequence('style.run', 'watch.style', done);
     } else {
@@ -60,7 +61,7 @@ gulp.task('style', function (done) {
     }
 });
 
-gulp.task('test.run', function (done) {
+sip.task('test.run', function (gulp, gutil, mocha, istanbul, js, done) {
     function runTests() {
         gulp.src(js.test)
         .pipe(mocha({reporter : gutil.env.reporter || 'dot'}))
@@ -79,11 +80,11 @@ gulp.task('test.run', function (done) {
     }
 });
 
-gulp.task('watch.test', function () {
+sip.task('watch.test', 'Continually run all unit tests', function (gulp, js) {
     gulp.watch(js.all, ['test.run']);
 });
 
-gulp.task('test', function (done) {
+sip.task('test', 'Run all unit tests', function (gutil, sequence, done) {
     if (gutil.env.watch) {
         sequence('test.run', 'watch.test', done);
     } else {
@@ -91,4 +92,6 @@ gulp.task('test', function (done) {
     }
 });
 
-gulp.task('all', ['lint', 'style', 'test']);
+sip.task('all', 'Run linter, style checker, and tests', ['lint', 'style', 'test']);
+
+sip.run(require('gulp'));
