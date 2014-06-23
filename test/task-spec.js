@@ -4,7 +4,8 @@ var GulpSip = require('../lib/gulp-sip'),
 Task = require('../lib/task'),
 util = require('../lib/util'),
 expect = require('chai').expect,
-sinon = require('sinon');
+sinon = require('sinon'),
+eol = require('os').EOL;
 
 describe('Task', function () {
     var sip, task, firstPlugin, otherPlugin;
@@ -122,6 +123,154 @@ describe('Task', function () {
                 expect(error.name, error).to.equal('GulpSipError');
                 expect(error.message).to.equal('The Task property [ dependencies ] must be an array of strings.');
             }
+        });
+
+        it('should throw an exception when [ options ] is provided and is not an object', function () {
+            try {
+                task = new Task(sip, {
+                    name : 'name',
+                    options : null,
+                    action : function () {}
+                });
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('The Task property [ options ] must be a valid options configuration object.');
+            }
+        });
+
+        it('should throw an exception when [ options ] is provided and not all of it\'s properties are objects',
+        function () {
+            try {
+                task = new Task(sip, {
+                    name : 'name',
+                    options : {
+                        watch : {
+                            list : ['w', 'watch']
+                        },
+                        coverage : true
+                    },
+                    action : function () {}
+                });
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('The Task property [ options ] must be a valid options configuration object.' +
+                eol + 'The option named [ coverage ] is not an object.');
+            }
+        });
+
+        it('should throw an exception when a valid [ options ] is provided and options is not in the inject list',
+        function () {
+            try {
+                task = new Task(sip, {
+                    name : 'Option.Task',
+                    options : {
+                        watch : {
+                            list : ['w', 'watch']
+                        }
+                    },
+                    action : function () {}
+                });
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('Options are configured for task [ Option.Task ], but they will not be accesible to the task ' +
+                'because the action function does not define the [ options ] argument.');
+            }
+        });
+
+        it('should throw an exception when a valid [ options ] is provided but [ action ] is not',
+        function () {
+            try {
+                task = new Task(sip, {
+                    name : 'option.task',
+                    options : {
+                        watch : {
+                            list : ['w', 'watch']
+                        }
+                    },
+                    dependencies : ['first']
+                });
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('Options are configured for task [ option.task ], but they will not be used ' +
+                'as there is no action function defined for this task.');
+            }
+        });
+
+        it('should throw an exception when a valid [ options ] is provided but [ action ] is not',
+        function () {
+            try {
+                task = new Task(sip, {
+                    name : 'no.options.task',
+                    action : function (options) { return options; }
+                });
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('The action for task [ no.options.task ] is defined with the [ options ] argument, ' +
+                'but no options have been defined for the task.');
+            }
+        });
+
+        describe('option configuration', function () {
+            it('should throw an exception when [ list ] is not provided', function () {
+                try {
+                    task = new Task(sip, {
+                        name : 'name',
+                        options : {
+                            watch : {
+                            }
+                        },
+                        action : function () {}
+                    });
+                    expect(true, 'An Error should have been thrown').to.be.false;
+                } catch (error) {
+                    expect(error.name, error).to.equal('GulpSipError');
+                    expect(error.message).to.equal('The Task property [ options ] must be a valid options configuration object.' +
+                    eol + 'The option named [ watch ] does not have the required property [ list ].');
+                }
+            });
+
+            it('should throw an exception when [ list ] is not an array', function () {
+                try {
+                    task = new Task(sip, {
+                        name : 'name',
+                        options : {
+                            watch : {
+                                list : null
+                            }
+                        },
+                        action : function () {}
+                    });
+                    expect(true, 'An Error should have been thrown').to.be.false;
+                } catch (error) {
+                    expect(error.name, error).to.equal('GulpSipError');
+                    expect(error.message).to.equal('The Task property [ options ] must be a valid options configuration object.' +
+                    eol + 'The option named [ watch ] must have a property [ list ] which is an array of strings.');
+                }
+            });
+
+            it('should throw an exception when [ list ] is not an array of only string items', function () {
+                try {
+                    task = new Task(sip, {
+                        name : 'name',
+                        options : {
+                            watch : {
+                                list : ['w', true]
+                            }
+                        },
+                        action : function () {}
+                    });
+                    expect(true, 'An Error should have been thrown').to.be.false;
+                } catch (error) {
+                    expect(error.name, error).to.equal('GulpSipError');
+                    expect(error.message).to.equal('The Task property [ options ] must be a valid options configuration object.' +
+                    eol + 'The option named [ watch ] must have a property [ list ] which is an array of strings.');
+                }
+            });
         });
 
         it('should throw an exception when [ action ] is provided and is not a function', function () {
@@ -254,6 +403,42 @@ describe('Task', function () {
             });
         });
 
+        it('should set [ options ] to undefined when not provided', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                action : function () {}
+            });
+            expect(Object.getOwnPropertyDescriptor(task, 'options')).to.deep.equal({
+                enumerable : true,
+                configurable : false,
+                writable : false,
+                value : undefined
+            });
+        });
+
+        it('should set [ options ] to the adjusted value of [ config.options ] when valid', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                options : {
+                    watch : {
+                        list : ['w', 'watch'],
+                        ignoredOption : null
+                    }
+                },
+                action : function (options) { return options; }
+            });
+            expect(Object.getOwnPropertyDescriptor(task, 'options')).to.deep.equal({
+                enumerable : true,
+                configurable : false,
+                writable : false,
+                value : {
+                    watch : {
+                        list : ['w', 'watch']
+                    }
+                }
+            });
+        });
+
         it('should set [ inject ] when provided with [ action ]', function () {
             task = new Task(sip, {
                 name : 'taskName',
@@ -307,43 +492,75 @@ describe('Task', function () {
             });
         });
 
-        it('should set [ injectDoneAt ] to [ -1 ] when [ done ] is not to be injected', function () {
+        it('should set [ injectAt ] to a special property', function () {
             task = new Task(sip, {
                 name : 'taskName',
                 action : function (gulp, other) { return [gulp, other]; }
             });
-            expect(Object.getOwnPropertyDescriptor(task, 'injectDoneAt')).to.deep.equal({
-                enumerable : true,
-                configurable : false,
-                writable : false,
-                value : -1
-            });
+            var descriptior = Object.getOwnPropertyDescriptor(task, 'injectAt');
+            expect(descriptior.enumerable).to.be.true;
+            expect(descriptior.configurable).to.be.false;
+            expect(descriptior.writable).to.be.false;
+            expect(descriptior.value).to.be.an('object');
         });
 
-        it('should set [ injectDoneAt ] to the position of [ done ] it is to be injected', function () {
+        it('should set [ injectAt.done ] to [ -1 ] when [ done ] is not to be injected', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                action : function (gulp, other) { return [gulp, other]; }
+            });
+            expect(task.injectAt.done).to.equal(-1);
+        });
+
+        it('should set [ injectAt.options ] to [ -1 ] when [ options ] is not to be injected', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                action : function (gulp, other) { return [gulp, other]; }
+            });
+            expect(task.injectAt.options).to.equal(-1);
+        });
+
+        it('should set [ injectAt.done ] to the position of [ done ] it is to be injected', function () {
             task = new Task(sip, {
                 name : 'taskName',
                 action : function (gulp, done, other) { return [gulp, done, other]; }
             });
-            expect(Object.getOwnPropertyDescriptor(task, 'injectDoneAt')).to.deep.equal({
-                enumerable : true,
-                configurable : false,
-                writable : false,
-                value : 1
-            });
+            expect(task.injectAt.done).to.equal(1);
         });
 
-        it('should set [ injectDoneAt ] to undefined when [ inject ] is also undefined', function () {
+        it('should set [ injectAt.options ] to the position of [ options ] it is to be injected', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                options : {
+                    watch : {
+                        list : ['watch']
+                    }
+                },
+                action : function (gulp, other, options) { return [gulp, other, options]; }
+            });
+            expect(task.injectAt.options).to.equal(2);
+        });
+
+        it('should set [ injectAt.done ] and [ injectAt.options ] correctly when both [ done ] and [ options ] are to be injected', function () {
+            task = new Task(sip, {
+                name : 'taskName',
+                options : {
+                    watch : {
+                        list : ['watch']
+                    }
+                },
+                action : function (done, gulp, other, options) { return [done, gulp, other, options]; }
+            });
+            expect(task.injectAt.done).to.equal(0);
+            expect(task.injectAt.options).to.equal(3);
+        });
+
+        it('should set [ injectAt ] to an empty object when [ inject ] is also undefined', function () {
             task = new Task(sip, {
                 name : 'taskName',
                 dependencies : ['otherTask']
             });
-            expect(Object.getOwnPropertyDescriptor(task, 'injectDoneAt')).to.deep.equal({
-                enumerable : true,
-                configurable : false,
-                writable : false,
-                value : undefined
-            });
+            expect(task.injectAt).to.deep.equal({});
         });
 
         it('should throw an Error when a plugin is not registered', function () {
@@ -614,6 +831,39 @@ describe('Task', function () {
                             console.log.restore();
                         }
                     });
+                });
+            });
+
+            describe('generated function when the action wants options', function () {
+                beforeEach(function () {
+                    new Task(sip, {
+                        name : 'options.task',
+                        options : {
+                            reallyFakeOption : {
+                                list : ['someStangeOption', 'someOtherStangeOption']
+                            }
+                        },
+                        action : function (options) { return stub(options); }
+                    }).register(sip);
+                    fn = gulp.task.firstCall.args[1];
+                });
+
+                it('should pass an [ options ] object to [ task.action ]', function () {
+                    fn();
+                    expect(stub.firstCall.args[0]).to.deep.equal({});
+                });
+
+                it('for each key in [ task.options ] when [ sip.env ] does not match any options, the property should be omitted from the passed [ options ]',
+                function () {
+                    fn();
+                    expect(stub.firstCall.args[0]).to.not.have.property('reallyFakeOption');
+                });
+
+                it('for each key in [ task.options ] when [ sip.env ] does match an option, the property should have the value of [ sip.env[key] ]',
+                function () {
+                    sip.env.someOtherStangeOption = 'The value on the command line';
+                    fn();
+                    expect(stub.firstCall.args[0].reallyFakeOption).to.equal('The value on the command line');
                 });
             });
         });

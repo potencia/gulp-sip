@@ -347,6 +347,17 @@ describe('GulpSip', function () {
             }
         });
 
+        it('should throw and Error when the name is [ options ]', function () {
+            try {
+                sip.plugin('options', '{Test}');
+                expect(true, 'An Error should have been thrown').to.be.false;
+            } catch (error) {
+                expect(error.name, error).to.equal('GulpSipError');
+                expect(error.message).to.equal('The plugin [ options ] is reserved to inject the [ options ] object for command line options support. ' +
+                                               'It cannot be used as a registered plugin name.');
+            }
+        });
+
         it('should throw and Error when the plugin is [ null ]', function () {
             try {
                 sip.plugin('test', null);
@@ -437,12 +448,6 @@ describe('GulpSip', function () {
             expect(sip.tasks[0].dependencies).to.deep.equal(['other']);
         });
 
-        it('should accept an optional function [ action ] as after the [ name ] argument', function () {
-            sip.task('name', function action () {});
-            expect(sip.tasks[0].name).to.equal('name');
-            expect(sip.tasks[0].action).to.be.a('function');
-        });
-
         it('should accept an optional array [ dependencies ] after the [ description ] argument', function () {
             sip.task('name', 'desc', ['other']);
             expect(sip.tasks[0].name).to.equal('name');
@@ -450,18 +455,53 @@ describe('GulpSip', function () {
             expect(sip.tasks[0].dependencies).to.deep.equal(['other']);
         });
 
-        it('should accept an optional function [ action ] as after the [ description ] argument', function () {
+        it('should accept an optional object [ options ] after the [ name ] argument', function () {
+            sip.task('name', {watch : {list : ['watch']}}, function action (options) { return options; });
+            expect(sip.tasks[0].name).to.equal('name');
+            expect(sip.tasks[0].options).to.deep.equal({watch : {list : ['watch']}});
+        });
+
+        it('should accept an optional object [ options ] after the [ description ] argument', function () {
+            sip.task('name', 'desc', {watch : {list : ['watch']}}, function action (options) { return options; });
+            expect(sip.tasks[0].name).to.equal('name');
+            expect(sip.tasks[0].description).to.equal('desc');
+            expect(sip.tasks[0].options).to.deep.equal({watch : {list : ['watch']}});
+        });
+
+        it('should accept an optional object [ options ] after the [ dependencies ] argument', function () {
+            sip.task('name', ['other'], {watch : {list : ['watch']}}, function action (options) { return options; });
+            expect(sip.tasks[0].name).to.equal('name');
+            expect(sip.tasks[0].dependencies).to.deep.equal(['other']);
+            expect(sip.tasks[0].options).to.deep.equal({watch : {list : ['watch']}});
+        });
+
+        it('should accept an optional function [ action ] after the [ name ] argument', function () {
+            sip.task('name', function action () {});
+            expect(sip.tasks[0].name).to.equal('name');
+            expect(sip.tasks[0].action).to.be.a('function');
+        });
+
+        it('should accept an optional function [ action ] after the [ description ] argument', function () {
             sip.task('name', 'desc', function action () {});
             expect(sip.tasks[0].name).to.equal('name');
             expect(sip.tasks[0].description).to.equal('desc');
             expect(sip.tasks[0].action).to.be.a('function');
         });
 
-        it('should accept an optional function [ action ] as after the [ dependencies ] argument', function () {
+        it('should accept an optional function [ action ] after the [ dependencies ] argument', function () {
             sip.task('name', 'desc', ['other'], function action () {});
             expect(sip.tasks[0].name).to.equal('name');
             expect(sip.tasks[0].description).to.equal('desc');
             expect(sip.tasks[0].dependencies).to.deep.equal(['other']);
+            expect(sip.tasks[0].action).to.be.a('function');
+        });
+
+        it('should accept an optional function [ action ] after the [ options ] argument', function () {
+            sip.task('name', 'desc', ['other'], {watch : {list : ['watch']}}, function action (options) { return options; });
+            expect(sip.tasks[0].name).to.equal('name');
+            expect(sip.tasks[0].description).to.equal('desc');
+            expect(sip.tasks[0].dependencies).to.deep.equal(['other']);
+            expect(sip.tasks[0].options).to.deep.equal({watch : {list : ['watch']}});
             expect(sip.tasks[0].action).to.be.a('function');
         });
 
