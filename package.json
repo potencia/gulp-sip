@@ -1,6 +1,6 @@
 {
     "name" : "gulp-sip",
-    "version" : "0.0.1",
+    "version" : "0.1.0",
     "description" : "A wrapper for gulp providing task descriptions, a more detailed task dependency tree, and dependency injection for tasks.",
     "author" : "John P. Johnson II",
     "license" : {
@@ -11,7 +11,7 @@
     "bugs" : {
         "url" : "https://github.com/potencia/gulp-sip/issues"
     },
-    "files" : ["build", "lib", "test", "index.js", "gulpfile.js","LICENSE", "README.md"],
+    "files" : ["package.json", "README.md", "LICENSE", "index.js", "lib"],
     "main" : "index.js",
     "repository" : {
         "type" : "git",
